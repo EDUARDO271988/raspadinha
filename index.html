@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raspadinha Premiada</title>
+<style>
+body { font-family: Arial; background:#0d47a1; color:#fff; text-align:center; }
+.container { padding:20px; }
+button { padding:15px 25px; font-size:18px; margin-top:20px; cursor:pointer; border:none; border-radius:5px; background:#ffeb3b; color:#000; font-weight:bold; }
+#raspadinha { display:none; }
+canvas { border:2px solid #fff; margin-top:20px; touch-action: none; }
+#resultado { font-size:22px; margin-top:15px; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<div class="container" id="pagamento">
+<h1>🎁 Raspadinha Premiada</h1>
+<p>Participe por apenas <b>R$1</b></p>
+
+<a href="https://mpago.la/2WtJ1R4" target="_blank" onclick="iniciarPagamento()">
+<button>Pagar com PIX</button>
+</a>
+
+<p>Após o pagamento, clique abaixo para liberar sua raspadinha 👇</p>
+<button onclick="liberarManual()">Já paguei</button>
+</div>
+
+<div class="container" id="raspadinha">
+<h2>Raspe e descubra seu prêmio</h2>
+<canvas id="canvas" width="300" height="150"></canvas>
+<div id="resultado"></div>
+</div>
+
+<script>
+let premio = "";
+
+// CONTROLE DE PAGAMENTO SEGURADO
+let totalArrecadado = localStorage.getItem("total_arrecadado") ? parseFloat(localStorage.getItem("total_arrecadado")) : 0;
+
+// Flag para saber se usuário clicou em "Já paguei"
+let pagamentoIniciado = localStorage.getItem("pagamento_iniciado") === "true";
+
+// Impede acesso direto à raspadinha sem pagamento
+if(pagamentoIniciado){
+    document.getElementById('pagamento').style.display = 'none';
+    document.getElementById('raspadinha').style.display = 'block';
+    gerarPremio();
+}
+
+function iniciarPagamento(){
+    // Marca que o usuário iniciou o processo de pagamento
+    localStorage.setItem("pagamento_iniciado", "true");
+    alert("Pagamento iniciado! Clique em 'Já paguei' após confirmar o PIX.");
+}
+
+function liberarManual(){
+    if(!localStorage.getItem("pagamento_iniciado")){
+        alert("Você precisa iniciar o pagamento primeiro!");
+        return;
+    }
+
+    // Incrementa total e guarda no storage
+    totalArrecadado += 1;
+    localStorage.setItem("total_arrecadado", totalArrecadado);
+
+    // Oculta tela de pagamento e mostra raspadinha
+    document.getElementById('pagamento').style.display = 'none';
+    document.getElementById('raspadinha').style.display = 'block';
+
+    // Limpa flag para que não possa repetir sem pagar novamente
+    localStorage.removeItem("pagamento_iniciado");
+
+    gerarPremio();
+}
+
+function gerarPremio(){
+    if(totalArrecadado >= 2000 && !localStorage.getItem("premio_entregue")){
+        premio = "🎉 1 ANO GRÁTIS";
+        localStorage.setItem("premio_entregue", "true");
+    } else {
+        premio = "😢 NÃO FOI DESSA VEZ";
+    }
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "gray";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    function rasparEvent(e){
+        e.preventDefault();
+        let touches = e.touches ? e.touches : [e];
+        touches.forEach(touch => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (touch.clientX || touch.pageX) - rect.left;
+            const y = (touch.clientY || touch.pageY) - rect.top;
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.arc(x,y,15,0,Math.PI*2);
+            ctx.fill();
+        });
+        verificarRaspagem();
+    }
+
+    canvas.addEventListener('mousemove', rasparEvent);
+    canvas.addEventListener('mousedown', e => { if(e.buttons === 1) rasparEvent(e); });
+    canvas.addEventListener('touchmove', rasparEvent);
+
+    function verificarRaspagem(){
+        const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+        let pixels = imageData.data;
+        let transparent = 0;
+        for(let i=3; i<pixels.length; i+=4){
+            if(pixels[i] === 0) transparent++;
+        }
+        if(transparent > (pixels.length/4)*0.5){
+            document.getElementById('resultado').innerText = premio;
+            canvas.removeEventListener('mousemove', rasparEvent);
+            canvas.removeEventListener('touchmove', rasparEvent);
+        }
+    }
+}
+</script>
+
+</body>
+</html>
